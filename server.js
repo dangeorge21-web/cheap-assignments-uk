@@ -30,6 +30,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS requests (
 )`);
 app.disable("x-powered-by");
 app.use(express.json({limit:"100kb"}));
+app.set("trust proxy", 1);
 app.use(session({
   store: new SQLiteStore({db:"sessions.sqlite",dir:DATA}),
   secret:process.env.SESSION_SECRET, resave:false, saveUninitialized:false,
