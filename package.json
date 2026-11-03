@@ -2,6 +2,9 @@
   "name": "uni-assignment-help-uk",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+  "node": "22.x"
+},
   "description": "Bilingual quote-request website and admin dashboard",
   "scripts": {
     "start": "node server.js"
