@@ -3,7 +3,7 @@ const session = require("express-session");
 const SQLiteStore = require("connect-sqlite3")(session);
 const Database = require("better-sqlite3");
 const multer = require("multer");
-const nodemailer = require("nodemailer");
+
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const path = require("path");
