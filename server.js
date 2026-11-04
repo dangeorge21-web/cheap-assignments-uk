@@ -42,13 +42,33 @@ const upload = multer({
  limits:{fileSize:10*1024*1024,files:1},
  fileFilter:(req,file,cb)=>{const ext=path.extname(file.originalname).toLowerCase();cb(null,[".pdf",".doc",".docx",".ppt",".pptx",".txt"].includes(ext));}
 });
-function mailer(){
- if(!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
- return nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==="true",auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}});
-}
 async function sendMail(options){
- const transport=mailer(); if(!transport){console.warn("SMTP not configured; email skipped.");return false;}
- await transport.sendMail({from:process.env.MAIL_FROM||process.env.SMTP_USER,...options});return true;
+  if(!process.env.RESEND_API_KEY){
+    console.warn("Resend API key not configured; email skipped.");
+    return false;
+  }
+
+  const response = await fetch("https://api.resend.com/emails",{
+    method:"POST",
+    headers:{
+      "Authorization":`Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      from:process.env.MAIL_FROM || "Cheap Assignments UK <notifications@cheapassignments.co.uk>",
+      to:[options.to],
+      subject:options.subject,
+      text:options.text
+    })
+  });
+
+  const result = await response.json();
+
+  if(!response.ok){
+    throw new Error(result.message || "Resend email failed");
+  }
+
+  return true;
 }
 function admin(req,res,next){if(req.session.admin===true)return next();return res.status(401).json({error:"Please sign in."});}
 app.post("/api/quote-requests",upload.single("brief"),async(req,res)=>{
@@ -68,7 +88,7 @@ app.post("/api/quote-requests",upload.single("brief"),async(req,res)=>{
     stored_name:req.file?req.file.filename:null,created_at:created
    });
   const id=info.lastInsertRowid;
-  try{await sendMail({to:process.env.ADMIN_EMAIL,subject:`New quote request ${reference}`,text:`New quote request received.\nReference: ${reference}\nName: ${name}\nEmail: ${email}\nService: ${service}\nSubject: ${subject||"—"}\nDeadline: ${deadline||"—"}\nDetails:\n${details}\n\nSign in to the admin dashboard to review and quote.`});}catch(e){console.error("Admin notification email failed:",e.message);}
+  sendMail({to:process.env.ADMIN_EMAIL,subject:`New quote request ${reference}`,text:`New quote request received.\nReference: ${reference}\nName: ${name}\nEmail: ${email}\nService: ${service}\nSubject: ${subject||"—"}\nDeadline: ${deadline||"—"}\nDetails:\n${details}\n\nSign in to the admin dashboard to review and quote.`}).catch(e=>console.error("Admin notification email failed:",e.message));
   res.status(201).json({ok:true,id,reference});
  }catch(e){console.error(e);res.status(500).json({error:"Could not save request. Please try again."});}
 });
